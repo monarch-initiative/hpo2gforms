@@ -21,7 +21,7 @@ public class Main implements Callable<Integer> {
             LOGGER.trace("Starting HPO tools");
             CommandLine cline = new CommandLine(new Main())
                     .addSubcommand("download", new DownloadCommand())
-                    .addSubcommand("gforms", new GoogleFormsCommand())
+                    .addSubcommand("gform", new GoogleFormsCommand())
                    ;
             cline.setToggleBooleanFlags(false);
             int exitCode = cline.execute(args);

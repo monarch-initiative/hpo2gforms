@@ -1,5 +1,7 @@
 package org.monarchinitiative.hpo2gforms.cmd;
 
+import org.monarchinitiative.hpo2gforms.gform.FormItem;
+import org.monarchinitiative.hpo2gforms.gform.GoogleForm;
 import org.monarchinitiative.phenol.base.PhenolRuntimeException;
 import org.monarchinitiative.phenol.io.OntologyLoader;
 import org.monarchinitiative.phenol.ontology.data.*;
@@ -41,14 +43,9 @@ public class GoogleFormsCommand extends HPOCommand implements Callable<Integer> 
         if (opt.isEmpty()) {
             return 1;
         }
-        List<FormItem> formItemList = new ArrayList<>();
-        TermId targetId = opt.get();
-        FormItem fitem = FormItem.fromTerm(targetId, hpoOntology);
-        formItemList.add(fitem);
-        for (TermId tid: hpoOntology.graph().getDescendants(targetId)) {
-            fitem = FormItem.fromTerm(targetId, hpoOntology);
-            formItemList.add(fitem);
-        }
+        GoogleForm gform = new GoogleForm(hpoOntology, opt.get());
+        String fxn = gform.getFunction();
+        System.out.println(fxn); // todo output to file
 
 
 
@@ -75,74 +72,4 @@ public class GoogleFormsCommand extends HPOCommand implements Callable<Integer> 
     }
 
 
-    static class FormItem {
-
-        private final Term term;
-        private final String label;
-        private final String pmids ;
-        private final  String comment ;
-        private final String synonyms;
-        private final   String parents;
-
-        FormItem(Term term, String label, String pmids, String comment, String synonyms, String parents) {
-            this.term = term;
-            this.label = label;
-            this.pmids = pmids;
-            this.comment = comment;
-            this.synonyms = synonyms;
-            this.parents = parents;
-        }
-
-
-        private static String getSynonymString(Term term) {
-            StringBuilder sb = new StringBuilder();
-            for (TermSynonym tsyn: term.getSynonyms()) {
-                String label = tsyn.getValue();
-                String scope = tsyn.getScope().toString();
-                String stype = tsyn.getSynonymTypeName();
-                String s = String.format("%s [%s;%s]", label, scope, stype);
-                sb.append(s);
-            }
-            return sb.toString();
-        }
-
-        private static String getParents(Term term, Ontology hpoOntology) {
-            List<String> termList = new ArrayList<>();
-            for (TermId tid: hpoOntology.graph().getParents(term.id())) {
-                Optional<Term> opt = hpoOntology.termForTermId(tid);
-                if (opt.isPresent()) {
-                    termList.add(String.format("%s [%s]", opt.get().getName(), tid.getValue()));
-                }
-            }
-            return String.join("; ", termList);
-        }
-
-        private static String getPmids(Term term) {
-            List<String> pmidList = term.getPmidXrefs().stream().
-                    filter(SimpleXref::isPmid).
-                    map(SimpleXref::getId).toList();
-            if (pmidList.isEmpty()) {
-                return "No PMIDs found";
-            } else {
-                return String.join("; ", pmidList);
-            }
-        }
-
-        public static FormItem fromTerm(TermId tid, Ontology hpoOntology) {
-            Optional<Term> opt = hpoOntology.termForTermId(tid);
-            if (opt.isPresent()) {
-                Term term = opt.get();
-                String label = term.getName();
-                String pmids = FormItem.getPmids(term);
-                String comment = term.getComment();
-                String synonyms = FormItem.getSynonymString(term);
-                String parents = getParents(term, hpoOntology);
-                return new FormItem(term, label, pmids, comment, synonyms, parents);
-            } else {
-                // should never happen
-                throw new PhenolRuntimeException("Could not find term for id " + tid.toString());
-            }
-
-        }
-    }
 }
