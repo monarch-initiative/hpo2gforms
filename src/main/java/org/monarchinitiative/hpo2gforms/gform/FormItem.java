@@ -1,6 +1,5 @@
 package org.monarchinitiative.hpo2gforms.gform;
 
-import org.monarchinitiative.hpo2gforms.cmd.GoogleFormsCommand;
 import org.monarchinitiative.phenol.base.PhenolRuntimeException;
 import org.monarchinitiative.phenol.ontology.data.*;
 
@@ -34,26 +33,38 @@ public record FormItem(
         return sb.toString();
     }
 
+    private String getHeader() {
+        String msg = String.format("The following questions refer to %s (%s). Indicate whether you approve of the term in principle. If you want to propose changes or additions enter the new text in the text boxes and otherwise leave them blank."
+                , term.getName(), term.id().getValue());
+        return String.format("form.addSectionHeaderItem().setTitle(\"%s\")\n", msg);
+    }
+
+    private String getInPrinciple() {
+        return String.format("""
+                form.addMultipleChoiceItem()
+                .setChoiceValues(['Accept','Reject', 'Accept with revisions'])
+                .setTitle("%s (%s)");
+                """, term.getName(),term.id().getValue());
+    }
+
 
     private String getDefinitionQuestion() {
         String d = term.getDefinition().length() > 2 ? term.getDefinition() : "None found";
         return String.format("""
-                form.addMultipleChoiceItem()
-                .setChoiceValues(['Approve','Disapprove of term', 'Needs work'])
+                form.addTextItem().setHelpText("add revised definition or leave blank")
                 .setTitle("%s (definition): %s");
                 """, term.id().getValue(), d);
     }
 
     private String getPmidQuestion() {
         String value;
-        if (pmids().length() > 0 && pmids.contains("PMID") ) {
+        if (!pmids().isEmpty() && pmids.contains("PMID") ) {
             value = pmids();
         } else {
             value = "None found";
         }
         return String.format("""
-                form.addMultipleChoiceItem()
-                .setChoiceValues(['Approve','Disapprove', 'Needs additional PMID'])
+                 form.addTextItem().setHelpText("add PMID or leave blank")
                 .setTitle("%s (PMIDs): %s");
                 """, term.id().getValue(),value);
     }
@@ -61,8 +72,7 @@ public record FormItem(
     private String getCommentQuestion() {
         String d = term.getComment().length() > 2 ? term.getComment() : "None found";
         return String.format("""
-                form.addMultipleChoiceItem()
-                .setChoiceValues(['Approve','Disapprove of comment', 'Needs work'])
+                 form.addTextItem().setHelpText("add revised comment or leave blank")
                 .setTitle("%s (Comment): %s");
                 """, term.id().getValue(), d);
     }
@@ -70,8 +80,7 @@ public record FormItem(
     private String getSynonymsQuestion() {
         String value = synonyms().length() > 2 ? synonyms() : "None found";
         return String.format("""
-                form.addMultipleChoiceItem()
-                .setChoiceValues(['Approve','Disapprove of comment', 'Needs work'])
+                 form.addTextItem().setHelpText("add synonyms or leave blank")
                 .setTitle("%s (Synonyms): %s");
                 """, term.id().getValue(), value);
     }
@@ -80,14 +89,19 @@ public record FormItem(
 
 
     public String getQuestionnaireItem() {
-        StringBuilder sb = new StringBuilder();
-        sb.append(getDefinitionQuestion());
-        sb.append(getPmidQuestion());
-        sb.append(getCommentQuestion());
-        sb.append(getSynonymsQuestion());
-        return sb.toString();
+        return getHeader() +
+                getInPrinciple() +
+                getDefinitionQuestion() +
+                getCommentQuestion() +
+                getPmidQuestion() +
+                getSynonymsQuestion();
     }
 
+
+    private static String escape(String value) {
+        return value.replaceAll("\"", "")
+                .replaceAll("'", "");
+    }
     /**
      *
      * @param term an HPO term
@@ -98,9 +112,7 @@ public record FormItem(
         List<String> termList = new ArrayList<>();
         for (TermId tid: hpoOntology.graph().getParents(term.id())) {
             Optional<Term> opt = hpoOntology.termForTermId(tid);
-            if (opt.isPresent()) {
-                termList.add(String.format("%s [%s]", opt.get().getName(), tid.getValue()));
-            }
+            opt.ifPresent(value -> termList.add(String.format("%s [%s]", value.getName(), tid.getValue())));
         }
         return String.join("; ", termList);
     }
@@ -131,7 +143,7 @@ public record FormItem(
             Term term = opt.get();
             String label = term.getName();
             String pmids = getPmids(term);
-            String comment = term.getComment();
+            String comment = escape(term.getComment());
             String synonyms = getSynonymString(term);
             String parents = getParents(term, hpoOntology);
             return new FormItem(term, label, pmids, comment, synonyms, parents);

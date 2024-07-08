@@ -1,6 +1,5 @@
 package org.monarchinitiative.hpo2gforms.cmd;
 
-import org.monarchinitiative.hpo2gforms.gform.FormItem;
 import org.monarchinitiative.hpo2gforms.gform.GoogleForm;
 import org.monarchinitiative.phenol.base.PhenolRuntimeException;
 import org.monarchinitiative.phenol.io.OntologyLoader;
@@ -9,9 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
+import java.io.BufferedWriter;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.Callable;
 
@@ -36,7 +36,7 @@ public class GoogleFormsCommand extends HPOCommand implements Callable<Integer> 
 
 
     @Override
-    public Integer call() throws Exception {
+    public Integer call() {
         // check that target id is valid
         Ontology hpoOntology = OntologyLoader.loadOntology(new File(hpopath));
         Optional<TermId> opt = getTargetId(hpoOntology);
@@ -45,28 +45,36 @@ public class GoogleFormsCommand extends HPOCommand implements Callable<Integer> 
         }
         GoogleForm gform = new GoogleForm(hpoOntology, opt.get());
         String fxn = gform.getFunction();
-        System.out.println(fxn); // todo output to file
-
-
-
+        System.out.println(fxn);
+        System.out.println("We output the function to the file " + outFileName);
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(outFileName))) {
+            bw.write(fxn);
+        } catch (IOException e) {
+            throw new PhenolRuntimeException(e);
+        }
         return 0;
     }
 
 
+
+
     private Optional<TermId> getTargetId(Ontology hpoOntology) {
         if ( targetHpoId.length() != 7) {
-            System.err.printf("[ERROR] target ID must be a seven digit number that corresponds to an HPO id\n");
-            System.err.printf("[ERROR] for insance, 0002021, which corresponds to Pyloric stenosis HP:0002021\n");
+            System.err.println("[ERROR] target ID must be a seven digit number that corresponds to an HPO id");
+            System.err.println("[ERROR] for insance, 0002021, which corresponds to Pyloric stenosis HP:0002021");
             return Optional.empty();
         }
         TermId hpoId;
         try {
             int idnumb = Integer.parseInt(targetHpoId);
-            hpoId = TermId.of("HP", targetHpoId);
+            hpoId = TermId.of(String.format("HP:%d", idnumb));
+            if (! hpoOntology.containsTermId(hpoId)) {
+                throw new PhenolRuntimeException("Term id " + hpoId + " does not exist in ontology");
+            }
             return Optional.of(hpoId);
         } catch (NumberFormatException e) {
-            System.err.printf("[ERROR] target ID must be a seven digit number that corresponds to an HPO id\n");
-            System.err.printf("[ERROR] for insance, 0002021, which corresponds to Pyloric stenosis HP:0002021\n");
+            System.err.println("[ERROR] target ID must be a seven digit number that corresponds to an HPO id.");
+            System.err.println("[ERROR] for instance, 0002021, which corresponds to Pyloric stenosis HP:0002021.");
             return  Optional.empty();
         }
     }
