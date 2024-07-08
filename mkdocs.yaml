@@ -39,3 +39,13 @@ markdown_extensions:
 #site_url: https://obophenotype.github.io/human-phenotype-ontology/
 #repo_url: https://github.com/obophenotype/human-phenotype-ontology/
 
+
+nav:
+  - Home: 'index.md'
+  - Running:
+      - Java: 'hpo2gforms.md'
+      - gapps: "gapps.md"
+      - distribution: "distribution.md"
+      - evaluation: "evaluation.md"
+  - Developers:
+      - Documentation: 'documentation.md'
