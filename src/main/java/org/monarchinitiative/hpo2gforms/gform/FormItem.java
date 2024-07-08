@@ -35,7 +35,7 @@ public record FormItem(
 
     private String getHeader() {
         String msg = String.format("The following questions refer to %s (%s). Indicate whether you approve of the term in principle. If you want to propose changes or additions enter the new text in the text boxes and otherwise leave them blank."
-                , term.getName(), term.id().getValue());
+                , TextBolder.encodeBold(term.getName()), TextBolder.encodeBold(term.id().getValue()));
         return String.format("form.addSectionHeaderItem().setTitle(\"%s\")\n", msg);
     }
 
