@@ -19,7 +19,7 @@ public class GoogleForm {
     public GoogleForm(Ontology hpoOntolgy, TermId targetId) {
         List<FormItem> formItemList = new ArrayList<>();
         for (TermId tid: hpoOntolgy.graph().getDescendants(targetId)) {
-            FormItem fitem = FormItem.fromTerm(targetId, hpoOntolgy);
+            FormItem fitem = FormItem.fromTerm(tid, hpoOntolgy);
             formItemList.add(fitem);
         }
         lines = new ArrayList<>();

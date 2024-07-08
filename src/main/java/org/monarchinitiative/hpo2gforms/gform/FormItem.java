@@ -35,26 +35,56 @@ public record FormItem(
     }
 
 
-    private String getTitle() {
-        //
-        return String.format("%s (%s), DEF: %s PMIDS %s Comment %s Synonyms %s",
-                label(),
-                term.id().getValue(),
-                term.getDefinition(),
-                pmids(),
-                term.getComment(),
-                synonyms());
+    private String getDefinitionQuestion() {
+        String d = term.getDefinition().length() > 2 ? term.getDefinition() : "None found";
+        return String.format("""
+                form.addMultipleChoiceItem()
+                .setChoiceValues(['Approve','Disapprove of term', 'Needs work'])
+                .setTitle("%s (definition): %s");
+                """, term.id().getValue(), d);
     }
+
+    private String getPmidQuestion() {
+        String value;
+        if (pmids().length() > 0 && pmids.contains("PMID") ) {
+            value = pmids();
+        } else {
+            value = "None found";
+        }
+        return String.format("""
+                form.addMultipleChoiceItem()
+                .setChoiceValues(['Approve','Disapprove', 'Needs additional PMID'])
+                .setTitle("%s (PMIDs): %s");
+                """, term.id().getValue(),value);
+    }
+
+    private String getCommentQuestion() {
+        String d = term.getComment().length() > 2 ? term.getComment() : "None found";
+        return String.format("""
+                form.addMultipleChoiceItem()
+                .setChoiceValues(['Approve','Disapprove of comment', 'Needs work'])
+                .setTitle("%s (Comment): %s");
+                """, term.id().getValue(), d);
+    }
+
+    private String getSynonymsQuestion() {
+        String value = synonyms().length() > 2 ? synonyms() : "None found";
+        return String.format("""
+                form.addMultipleChoiceItem()
+                .setChoiceValues(['Approve','Disapprove of comment', 'Needs work'])
+                .setTitle("%s (Synonyms): %s");
+                """, term.id().getValue(), value);
+    }
+
+
+
 
     public String getQuestionnaireItem() {
         StringBuilder sb = new StringBuilder();
-        sb.append("form.addMultipleChoiceItem()");
-        sb.append(".setChoiceValues(['Approve','Disapprove', 'Needs work'])");
-        sb.append(" .setTitle('").append(getTitle()).append("');");
-           // TODO
-        // a
-        sb.append("form.addTextItem().setTitle('Suggestions for improving definition (Blank if happy)');");
-
+        sb.append(getDefinitionQuestion());
+        sb.append(getPmidQuestion());
+        sb.append(getCommentQuestion());
+        sb.append(getSynonymsQuestion());
         return sb.toString();
     }
 
