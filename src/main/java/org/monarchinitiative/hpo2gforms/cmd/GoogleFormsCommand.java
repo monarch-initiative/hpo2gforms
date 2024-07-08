@@ -64,19 +64,16 @@ public class GoogleFormsCommand extends HPOCommand implements Callable<Integer> 
             System.err.println("[ERROR] for insance, 0002021, which corresponds to Pyloric stenosis HP:0002021");
             return Optional.empty();
         }
-        TermId hpoId;
-        try {
-            int idnumb = Integer.parseInt(targetHpoId);
-            hpoId = TermId.of(String.format("HP:%d", idnumb));
-            if (! hpoOntology.containsTermId(hpoId)) {
-                throw new PhenolRuntimeException("Term id " + hpoId + " does not exist in ontology");
+
+        for (char c : targetHpoId.toCharArray()) {
+            if (!Character.isDigit(c)) {
+                System.err.println("[ERROR] target ID must be a seven digit number that corresponds to an HPO id.");
+                System.err.println("[ERROR] for instance, 0002021, which corresponds to Pyloric stenosis HP:0002021.");
+                return  Optional.empty();
             }
-            return Optional.of(hpoId);
-        } catch (NumberFormatException e) {
-            System.err.println("[ERROR] target ID must be a seven digit number that corresponds to an HPO id.");
-            System.err.println("[ERROR] for instance, 0002021, which corresponds to Pyloric stenosis HP:0002021.");
-            return  Optional.empty();
         }
+        TermId hpoId = TermId.of("HP", targetHpoId);
+        return Optional.of(hpoId);
     }
 
 
