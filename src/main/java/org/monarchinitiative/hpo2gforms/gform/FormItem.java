@@ -13,7 +13,7 @@ public record FormItem(
         String pmids,
         String comment,
         String synonyms,
-        String parents
+        List<Term> parents
 ) {
 
 
@@ -39,12 +39,16 @@ public record FormItem(
         return String.format("form.addSectionHeaderItem().setTitle(\"%s\")\n", msg);
     }
 
+    private String getBoldedTerm() {
+        return String.format("%s (%s)", TextBolder.encodeBold(label()), term.id().getValue());
+    }
+
     private String getInPrinciple() {
         return String.format("""
                 form.addMultipleChoiceItem()
                 .setChoiceValues(['Accept','Reject', 'Accept with revisions'])
-                .setTitle("%s (%s)");
-                """, term.getName(),term.id().getValue());
+                .setTitle("%s");
+                """, getBoldedTerm());
     }
 
 
@@ -53,7 +57,7 @@ public record FormItem(
         return String.format("""
                 form.addTextItem().setHelpText("add revised definition or leave blank")
                 .setTitle("%s (definition): %s");
-                """, term.id().getValue(), d);
+                """, getBoldedTerm(), d);
     }
 
     private String getPmidQuestion() {
@@ -66,7 +70,7 @@ public record FormItem(
         return String.format("""
                  form.addTextItem().setHelpText("add PMID or leave blank")
                 .setTitle("%s (PMIDs): %s");
-                """, term.id().getValue(),value);
+                """, getBoldedTerm(),value);
     }
 
     private String getCommentQuestion() {
@@ -74,7 +78,7 @@ public record FormItem(
         return String.format("""
                  form.addTextItem().setHelpText("add revised comment or leave blank")
                 .setTitle("%s (Comment): %s");
-                """, term.id().getValue(), d);
+                """, getBoldedTerm(), d);
     }
 
     private String getSynonymsQuestion() {
@@ -82,7 +86,24 @@ public record FormItem(
         return String.format("""
                  form.addTextItem().setHelpText("add synonyms or leave blank")
                 .setTitle("%s (Synonyms): %s");
-                """, term.id().getValue(), value);
+                """, getBoldedTerm(), value);
+    }
+
+    private String getParentsQuestion() {
+        List<String> parentString = new ArrayList<>();
+        if (parents.isEmpty()) {
+            return "please report error"; // we should never actually be processing the root, so this should never happen
+        }
+        for (Term term: parents) {
+            String urlString = String.format("https://hpo.jax.org/browse/term/%s", term.id().getValue());
+            String label = String.format("%s (%s)", term.getName(), urlString);
+            parentString.add(label);
+        }
+        String value = String.join(" and ", parentString);
+        return String.format("""
+                 form.addTextItem().setHelpText("Check whether parent(s) are appropriate")
+                .setTitle("%s (Parents) %s);");
+                """, getBoldedTerm(), value);
     }
 
 
@@ -94,6 +115,7 @@ public record FormItem(
                 getDefinitionQuestion() +
                 getCommentQuestion() +
                 getPmidQuestion() +
+                getParentsQuestion() +
                 getSynonymsQuestion();
     }
 
@@ -108,13 +130,13 @@ public record FormItem(
      * @param hpoOntology Reference to HPO object
      * @return A string for display on a Google form that represents the parents of the current term
      */
-    private static String getParents(Term term, Ontology hpoOntology) {
-        List<String> termList = new ArrayList<>();
+    private static List<Term> getParents(Term term, Ontology hpoOntology) {
+        List<Term> termList = new ArrayList<>();
         for (TermId tid: hpoOntology.graph().getParents(term.id())) {
             Optional<Term> opt = hpoOntology.termForTermId(tid);
-            opt.ifPresent(value -> termList.add(String.format("%s [%s]", value.getName(), tid.getValue())));
+            opt.ifPresent( termList::add);
         }
-        return String.join("; ", termList);
+        return termList;
     }
 
     /**
@@ -145,7 +167,7 @@ public record FormItem(
             String pmids = getPmids(term);
             String comment = escape(term.getComment());
             String synonyms = getSynonymString(term);
-            String parents = getParents(term, hpoOntology);
+            List<Term> parents = getParents(term, hpoOntology);
             return new FormItem(term, label, pmids, comment, synonyms, parents);
         } else {
             // should never happen
