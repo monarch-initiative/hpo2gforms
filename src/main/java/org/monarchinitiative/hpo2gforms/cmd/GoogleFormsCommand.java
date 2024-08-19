@@ -12,7 +12,7 @@ import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.Callable;
 
 
@@ -34,6 +34,10 @@ public class GoogleFormsCommand extends HPOCommand implements Callable<Integer> 
     @CommandLine.Option(names={"-o","--outfile"}, description = "outfile name (default: script.txt)")
     private String outFileName = "script.txt";
 
+    @CommandLine.Option(names={"-x","--max"}, description = "maximum items per questionnaire (default: ${DEFAULT-VALUE} )")
+    private Integer maxItemsPerQuestionnaire = 25;
+
+
 
     @Override
     public Integer call() {
@@ -43,17 +47,91 @@ public class GoogleFormsCommand extends HPOCommand implements Callable<Integer> 
         if (opt.isEmpty()) {
             return 1;
         }
-        GoogleForm gform = new GoogleForm(hpoOntology, opt.get());
-        String fxn = gform.getFunction();
-        System.out.println(fxn);
-        System.out.println("We output the function to the file " + outFileName);
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(outFileName))) {
-            bw.write(fxn);
-        } catch (IOException e) {
-            throw new PhenolRuntimeException(e);
+        TermId targetId = opt.get();
+        List<TermId> targetList = getTargetIdAndDescendants(hpoOntology, targetId);
+        List<List<Term>> termIdPartition = partitionTermIds(targetList, maxItemsPerQuestionnaire, hpoOntology);
+        List<String> fnames = getOutputFileNames(targetId, termIdPartition.size());
+        for (int i = 0; i < termIdPartition.size(); i++) {
+            int part = i+1;
+            String fname = fnames.get(i);
+            List<Term> terms = termIdPartition.get(i);
+            GoogleForm gform = new GoogleForm(terms, hpoOntology, targetId, part);
+            String fxn = gform.getFunction();
+            System.out.println(fxn);
+            System.out.println("We output the function to the file " + fname);
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(fname))) {
+                bw.write(fxn);
+            } catch (IOException e) {
+                throw new PhenolRuntimeException(e);
+            }
         }
+
         return 0;
     }
+
+
+    public static List<String> getOutputFileNames(TermId targetId, int n_groups) {
+        List<String> fnames = new ArrayList<>();
+        for (int i = 0; i < n_groups; i++) {
+            fnames.add(String.format("%s_%d.txt", targetId.getValue().replace(":", "_"), (1+i)));
+        }
+        return fnames;
+    }
+
+
+    public static List<List<Term>> getBatches(List<TermId> collection, int batchSize, Ontology hpoOntology){
+        int i = 0;
+        List<List<TermId>> batches = new ArrayList<>();
+        while(i<collection.size()){
+            int nextInc = Math.min(collection.size()-i,batchSize);
+            List<TermId> batch = collection.subList(i,i+nextInc);
+            batches.add(batch);
+            i = i + nextInc;
+        }
+        List<List<Term>> termBatches = new ArrayList<>();
+        for (List<TermId> batch : batches) {
+            List<Term> terms = new ArrayList<>();
+            for (TermId termId : batch) {
+                Optional<Term> opt = hpoOntology.termForTermId(termId);
+                if (opt.isPresent()) {
+                    terms.add(opt.get());
+                } else {
+                    // should never happen
+                    throw new PhenolRuntimeException("Could not find term " + termId);
+                }
+            }
+            termBatches.add(terms);
+        }
+
+        return termBatches;
+    }
+
+
+    private List<List<Term>> partitionTermIds(List<TermId> targetSet, Integer maxSize, Ontology hpoOntology) {
+        if (maxSize == null) {
+            // if no maximum size is provided, return one group
+            return getBatches(targetSet, Integer.MAX_VALUE, hpoOntology);
+        } else {
+            int n_groups = (int) Math.ceil((double)targetSet.size() / maxSize);
+            int group_size = (int) Math.ceil((double)targetSet.size() / n_groups);
+            return   getBatches(targetSet, group_size, hpoOntology);
+        }
+    }
+
+
+    private List<TermId> getTargetIdAndDescendants(Ontology hpoOntology, TermId targetId) {
+        List<TermId> targetList = new ArrayList<>();
+        targetList.add(targetId);
+        for (TermId tid: hpoOntology.graph().getDescendants(targetId)) {
+            targetList.add(tid);
+        }
+        return targetList;
+    }
+
+
+
+
+
 
 
 
