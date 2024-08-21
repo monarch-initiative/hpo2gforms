@@ -45,16 +45,14 @@ a period of several weeks. Responses are evaluted as described [here](evaluation
 Each term is then evaluated. If a participant has entered ``Accept``, ``n/a``,
 or no answer for each component of a term and has not entered a text comment
 requesting revision, then the response is graded as ``Term Accept``.
-for each component
+for each component.
 
-We defined consensus agreement for a term if at least 70% of participants scored the term as “agree” for all components and fewer than 15% of participants scored any component of the term as “disagree” (Figure ??? shows an example set of questions as they appeared in Google form).
+We defined consensus agreement for a term if at least 70% of participants scored the term as “agree” for all components and fewer than 15% of participants scored any component of the term as “disagree” 
 
+Please see the [tutorial](tutorial.md) for information about how the questionnaires are to be filled out.
 
 
 For the first phase of the Delphi process, participants were given three weeks to complete the survey.  Participants were sent a reminder email if they had not completed the phase with one week remaining.  Participants who did not complete a phase by the deadline were deemed to have withdrawn from the study and were not invited to take part in subsequent phases.
 
 
 
-
-
-The content was developed and refined within a series of on-site and virtual workshops. The onsite workshops were held at

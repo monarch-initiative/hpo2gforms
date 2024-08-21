@@ -43,10 +43,10 @@ markdown_extensions:
 nav:
   - Home: 'index.md'
   - Delphi: 'delphi.md'
-  - Running:
-      - Java: 'hpo2gforms.md'
+  - Tutorial: 'tutorial.md' 
+  - Developers:
+      - hpo2gforms: 'hpo2gforms.md'
       - gapps: "gapps.md"
       - distribution: "distribution.md"
       - evaluation: "evaluation.md"
-  - Developers:
-      - Documentation: 'documentation.md'
+      - documentation: "documentation.md"
