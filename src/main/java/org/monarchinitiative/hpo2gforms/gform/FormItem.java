@@ -1,6 +1,5 @@
 package org.monarchinitiative.hpo2gforms.gform;
 
-import org.monarchinitiative.phenol.base.PhenolRuntimeException;
 import org.monarchinitiative.phenol.ontology.data.*;
 
 import java.util.ArrayList;
@@ -10,10 +9,11 @@ import java.util.Optional;
 public record FormItem(
         Term term,
         String label,
+        String definition,
         String pmids,
         String comment,
         String synonyms,
-        String parents
+        List<Term> parents
 ) {
 
 
@@ -33,68 +33,80 @@ public record FormItem(
         return sb.toString();
     }
 
+
+    private String getTermSummary() {
+        String header = String.format("%s: %s (%s).",
+                TextBolder.encodeBold("Term label (id)"),
+                TextBolder.encodeBold(term.getName()), TextBolder.encodeBold(term.id().getValue()));
+        String value = synonyms().length() > 1 ? synonyms() : "None found";
+        String synonyms = String.format("%s: %s", TextBolder.encodeBold("Synonyms"), value);
+        String parents = String.format("%s: %s", TextBolder.encodeBold("Parents"), getParentsString());
+        String definition = String.format("%s: %s", TextBolder.encodeBold("Definition"), definition());
+        String comment = String.format("%s: %s", TextBolder.encodeBold("Comment"), this.term.getComment());
+        value =!pmids().isEmpty() && pmids.contains("PMID")  ? pmids() : "None found";
+        String pmid = String.format("%s: %s", TextBolder.encodeBold("PMID"), value);
+        String instruction = String.format("%s:",TextBolder.encodeBold("Add comments here (leave blank unless you have suggested revision)"));
+        List<String> items = List.of(synonyms, parents, definition, comment, pmid, instruction);
+
+        return String.format("""
+                 var paragraphTextItem = form.addParagraphTextItem();
+                 paragraphTextItem.setTitle('%s')
+                 paragraphTextItem.setHelpText('%s');
+                 """,
+                header,
+                String.join("\\n\\n", items)
+                );
+    }
+
+
+    /**
+     * This function creates a grid of radio buttons for the user to
+     * rate the components of a term
+      * @return a String with code for a Google App Script gridItem
+     */
+    private String getGrid() {
+        return String.format("""
+        var gridItem = form.addGridItem();
+        gridItem.setTitle('[%s]')
+                .setRows(['Term label', 'Synonyms',  'Parents(s)', 'Definition', 'Comment', 'PMIDs'])
+                .setColumns(['Accept','Reject', 'Revise', 'n/a']);
+        """, term.id().getValue());
+    }
+
+
+
+
+
+
+
     private String getHeader() {
-        String msg = String.format("The following questions refer to %s (%s). Indicate whether you approve of the term in principle. If you want to propose changes or additions enter the new text in the text boxes and otherwise leave them blank."
+        String msg = String.format("%s (%s). The following subsections allow you to make suggestions for each part of the term, and the final question will ask whether you approve of the term overall."
                 , TextBolder.encodeBold(term.getName()), TextBolder.encodeBold(term.id().getValue()));
         return String.format("form.addSectionHeaderItem().setTitle(\"%s\")\n", msg);
     }
 
-    private String getInPrinciple() {
-        return String.format("""
-                form.addMultipleChoiceItem()
-                .setChoiceValues(['Accept','Reject', 'Accept with revisions'])
-                .setTitle("%s (%s)");
-                """, term.getName(),term.id().getValue());
+    private String getBoldedTerm() {
+        return String.format("%s (%s)", TextBolder.encodeBold(label()), term.id().getValue());
     }
 
 
-    private String getDefinitionQuestion() {
-        String d = term.getDefinition().length() > 2 ? term.getDefinition() : "None found";
-        return String.format("""
-                form.addTextItem().setHelpText("add revised definition or leave blank")
-                .setTitle("%s (definition): %s");
-                """, term.id().getValue(), d);
-    }
-
-    private String getPmidQuestion() {
-        String value;
-        if (!pmids().isEmpty() && pmids.contains("PMID") ) {
-            value = pmids();
-        } else {
-            value = "None found";
+    private String getParentsString() {
+        List<String> parentString = new ArrayList<>();
+        if (parents.isEmpty()) {
+            return "please report error"; // we should never actually be processing the root, so this should never happen
         }
-        return String.format("""
-                 form.addTextItem().setHelpText("add PMID or leave blank")
-                .setTitle("%s (PMIDs): %s");
-                """, term.id().getValue(),value);
+        for (Term term: parents) {
+            String urlString = String.format("https://hpo.jax.org/browse/term/%s", term.id().getValue());
+            String label = String.format("%s (%s)", term.getName(), urlString);
+            parentString.add(label);
+        }
+       return String.join(" and ", parentString);
     }
-
-    private String getCommentQuestion() {
-        String d = term.getComment().length() > 2 ? term.getComment() : "None found";
-        return String.format("""
-                 form.addTextItem().setHelpText("add revised comment or leave blank")
-                .setTitle("%s (Comment): %s");
-                """, term.id().getValue(), d);
-    }
-
-    private String getSynonymsQuestion() {
-        String value = synonyms().length() > 2 ? synonyms() : "None found";
-        return String.format("""
-                 form.addTextItem().setHelpText("add synonyms or leave blank")
-                .setTitle("%s (Synonyms): %s");
-                """, term.id().getValue(), value);
-    }
-
 
 
 
     public String getQuestionnaireItem() {
-        return getHeader() +
-                getInPrinciple() +
-                getDefinitionQuestion() +
-                getCommentQuestion() +
-                getPmidQuestion() +
-                getSynonymsQuestion();
+        return  getTermSummary() + getGrid();
     }
 
 
@@ -108,13 +120,13 @@ public record FormItem(
      * @param hpoOntology Reference to HPO object
      * @return A string for display on a Google form that represents the parents of the current term
      */
-    private static String getParents(Term term, Ontology hpoOntology) {
-        List<String> termList = new ArrayList<>();
+    private static List<Term> getParents(Term term, Ontology hpoOntology) {
+        List<Term> termList = new ArrayList<>();
         for (TermId tid: hpoOntology.graph().getParents(term.id())) {
             Optional<Term> opt = hpoOntology.termForTermId(tid);
-            opt.ifPresent(value -> termList.add(String.format("%s [%s]", value.getName(), tid.getValue())));
+            opt.ifPresent( termList::add);
         }
-        return String.join("; ", termList);
+        return termList;
     }
 
     /**
@@ -133,23 +145,18 @@ public record FormItem(
     }
 
     /**
-     * @param tid TermId of an HPO term that we want to display on a Google for
+     * @param term an HPO term that we want to display on a Google for
      * @param hpoOntology reference to HPO ontology
      * @return Object that can generate an item for a Google form
      */
-    public static FormItem fromTerm(TermId tid, Ontology hpoOntology) {
-        Optional<Term> opt = hpoOntology.termForTermId(tid);
-        if (opt.isPresent()) {
-            Term term = opt.get();
+    public static FormItem fromTerm(Term term, Ontology hpoOntology) {
             String label = term.getName();
+            String definition = escape(term.getDefinition());
             String pmids = getPmids(term);
             String comment = escape(term.getComment());
             String synonyms = getSynonymString(term);
-            String parents = getParents(term, hpoOntology);
-            return new FormItem(term, label, pmids, comment, synonyms, parents);
-        } else {
-            // should never happen
-            throw new PhenolRuntimeException("Could not find term for id " + tid.toString());
-        }
+            List<Term> parents = getParents(term, hpoOntology);
+            return new FormItem(term, label, definition, pmids, comment, synonyms, parents);
+
     }
 }

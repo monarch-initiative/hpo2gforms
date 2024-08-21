@@ -16,17 +16,45 @@ public class GoogleForm {
 
     private final static String DESCRIPTION = "Use this form to enter your opinion about HPO terms, definitions, comments, PMIDs, and synonyms";
 
-    public GoogleForm(Ontology hpoOntolgy, TermId targetId) {
+    private final Ontology ontology;
+
+    private final TermId targetId;
+
+    private final int questionnairePart;
+
+
+
+    private String getNameAndEmail() {
+        return  """
+                form.addTextItem()
+                    .setTitle('Name:')
+                    .setRequired(true);
+                var emailValidation = FormApp.createTextValidation()
+                     .requireTextMatchesPattern('[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+')
+                     .setHelpText('Please enter a valid email address')
+                     .build();
+                form.addTextItem()
+                     .setTitle('Email address:')
+                     .setRequired(true)
+                     .setValidation(emailValidation);
+                """;
+    }
+
+
+    public GoogleForm(List<Term> termList, Ontology hpoOntolgy, TermId targetId, int part) {
         List<FormItem> formItemList = new ArrayList<>();
-        for (TermId tid: hpoOntolgy.graph().getDescendants(targetId)) {
-            FormItem fitem = FormItem.fromTerm(tid, hpoOntolgy);
+        ontology = hpoOntolgy;
+        this.targetId = targetId;
+        questionnairePart = part;
+        for (Term term: termList) {
+            FormItem fitem = FormItem.fromTerm(term, this.ontology);
             formItemList.add(fitem);
         }
         lines = new ArrayList<>();
         lines.add("function hpo_questionnaire() {");
-        addWithIndent(String.format("var form = FormApp.create('%s');", getTitle(hpoOntolgy, targetId)));
+        addWithIndent(String.format("var form = FormApp.create('%s');", getQuestiionnaireTitle()));
         addWithIndent(String.format(" form.setDescription(\"%s\");", DESCRIPTION));
-      //  function myfxn () {
+        lines.add(getNameAndEmail());
         for (FormItem fitem: formItemList) {
             lines.add(fitem.getQuestionnaireItem());
         }
@@ -38,12 +66,12 @@ public class GoogleForm {
     }
 
 
-    private String getTitle(Ontology hpoOntolgy, TermId targetId) {
-        Optional<Term> opt = hpoOntolgy.termForTermId(targetId);
+    private String getQuestiionnaireTitle() {
+        Optional<Term> opt = ontology.termForTermId(targetId);
         if (opt.isPresent()) {
             Term term = opt.get();
             String label = term.getName();
-            return String.format("%s (%s)", label, targetId.getValue());
+            return String.format("%s (%s) part %d", label, targetId.getValue(), questionnairePart);
         } else {
             throw new PhenolRuntimeException("Could not find term for target " + targetId);
         }
