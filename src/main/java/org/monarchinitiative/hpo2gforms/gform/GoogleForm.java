@@ -24,6 +24,23 @@ public class GoogleForm {
 
 
 
+    private String getNameAndEmail() {
+        return  """
+                form.addTextItem()
+                    .setTitle('Name:')
+                    .setRequired(true);
+                var emailValidation = FormApp.createTextValidation()
+                     .requireTextMatchesPattern('[^@\\\\s]+@[^@\\\\s]+\\\\.[^@\\\\s]+')
+                     .setHelpText('Please enter a valid email address')
+                     .build();
+                form.addTextItem()
+                     .setTitle('Email address:')
+                     .setRequired(true)
+                     .setValidation(emailValidation);
+                """;
+    }
+
+
     public GoogleForm(List<Term> termList, Ontology hpoOntolgy, TermId targetId, int part) {
         List<FormItem> formItemList = new ArrayList<>();
         ontology = hpoOntolgy;
@@ -37,7 +54,7 @@ public class GoogleForm {
         lines.add("function hpo_questionnaire() {");
         addWithIndent(String.format("var form = FormApp.create('%s');", getQuestiionnaireTitle()));
         addWithIndent(String.format(" form.setDescription(\"%s\");", DESCRIPTION));
-        //  function myfxn () {
+        lines.add(getNameAndEmail());
         for (FormItem fitem: formItemList) {
             lines.add(fitem.getQuestionnaireItem());
         }

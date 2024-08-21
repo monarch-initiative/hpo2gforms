@@ -35,7 +35,9 @@ public record FormItem(
 
 
     private String getTermSummary() {
-        String header = String.format("%s (%s).", TextBolder.encodeBold(term.getName()), TextBolder.encodeBold(term.id().getValue()));
+        String header = String.format("%s: %s (%s).",
+                TextBolder.encodeBold("Term label (id)"),
+                TextBolder.encodeBold(term.getName()), TextBolder.encodeBold(term.id().getValue()));
         String value = synonyms().length() > 1 ? synonyms() : "None found";
         String synonyms = String.format("%s: %s", TextBolder.encodeBold("Synonyms"), value);
         String parents = String.format("%s: %s", TextBolder.encodeBold("Parents"), getParentsString());
@@ -57,14 +59,16 @@ public record FormItem(
     }
 
 
-
-
-
+    /**
+     * This function creates a grid of radio buttons for the user to
+     * rate the components of a term
+      * @return a String with code for a Google App Script gridItem
+     */
     private String getGrid() {
         return String.format("""
         var gridItem = form.addGridItem();
         gridItem.setTitle('[%s]')
-                .setRows(['Term label', 'Parents(s)', 'Synonyms', 'Definition', 'Comment', 'PMIDs'])
+                .setRows(['Term label', 'Synonyms',  'Parents(s)', 'Definition', 'Comment', 'PMIDs'])
                 .setColumns(['Accept','Reject', 'Revise', 'n/a']);
         """, term.id().getValue());
     }
